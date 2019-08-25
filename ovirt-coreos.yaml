@@ -1,0 +1,11 @@
+# unified-core compatible
+ref: ovirt/44/${basearch}/coreos
+include: ovirt-coreos-base.yaml
+
+#packages:
+#  - fedora-release-coreos
+
+rojig:
+  license: MIT
+  name: fedora-coreos
+  summary: Fedora CoreOS base image

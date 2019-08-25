@@ -1,0 +1,13 @@
+---
+stage:
+  - build-artifacts
+  - check-merged
+  - check-patch
+
+distro: [fc29]
+
+runtime_requirements:
+  support_nesting_level: 2
+
+release_branches:
+    master: ovirt-master
