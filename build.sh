@@ -16,7 +16,13 @@ setup_repos() {
     ln -sf fedora-coreos-config/minimal.yaml .
     ln -sf fedora-coreos-config/image.yaml .
     ln -sf fedora-coreos-config/installer .
-    #ln -sf fedora-coreos-config/overlay.d .
+    ln -sf fedora-coreos-config/overlay.d .
+    ln -sf fedora-coreos-config/grub2-removals.yaml .
+    ln -sf fedora-coreos-config/fedora-coreos-base.yaml ovirt-coreos-base.yaml
+
+    # Rebrand installer
+    sed -i 's/Fedora CoreOS/oVirt Node CoreOS/' \
+        installer/isolinux/isolinux.cfg installer/EFI/fedora/grub.cfg \
 
     # Extract repo files from release.rpm
     tmpdir=$(mktemp -d)
@@ -33,15 +39,25 @@ setup_repos() {
     done
 
     # Generate ovirt-node-config
-    sed "s/@FC_RELEASE_VER@/${fedora_release}/" ovirt-coreos-base.yaml.in > ovirt-coreos-base.yaml
+    sed -i "s/^releasever:.*/releasever: \"${fedora_release}\"/" ovirt-coreos-base.yaml
+
+    # Setup packages
+    echo "  - ovirt-host" >> ovirt-coreos-base.yaml
+    sed -i \
+        -e /nfs-utils-coreos/d \
+        -e /zincati/d \
+        -e /fedora-coreos-pinger/d \
+        ovirt-coreos-base.yaml
+
+    # Setup repos
     echo "repos:" >> ovirt-coreos-base.yaml
-    grep '^\[' *.repo | \
+    grep '^\[' *.repo | grep -v fedora-updates-testing | \
         cut -d: -f2 | \
         sed 's/\[\(.*\)\]/  - \1/' >> ovirt-coreos-base.yaml
     popd
 }
 
-rebuild_vdsm() {
+handle_overrides() {
     local workdir="$1"
 
     # Rebuild vdsm for now until we discuss how we move from /rhev/data-center
@@ -70,8 +86,12 @@ setup_cosa() {
     fi
 
     cosa_git=${CONFIG_DIR}/coreos-assembler
+    rm -rf ${cosa_git}
     git clone --depth=1 https://github.com/coreos/coreos-assembler.git ${cosa_git}
     sed -i 's/percent 20/percent 30/' ${cosa_git}/src/cmd-buildextend-metal
+    #sed -i '/^ostree admin/a ls -la rootfs' ${cosa_git}/src/create_disk.sh
+    #sed -i '/Running:/a ostree ls --repo="${tmprepo}" ovirt/44/x86_64/coreos ||:' ${cosa_git}/src/cmdlib.sh
+    #sed -i '/Very special/i ostree ls --repo="${tmprepo}" ovirt/44/x86_64/coreos ||:' ${cosa_git}/src/cmd-build
     export COREOS_ASSEMBLER_GIT=${cosa_git}
 
     setfacl -m u:1000:rwx ${workdir}
@@ -81,9 +101,8 @@ setup_cosa() {
 
 cosa() {
     env | grep COREOS_ASSEMBLER
-    docker run --rm --security-opt label=disable --privileged \
-        -v ${PWD}:/srv/ --device /dev/kvm --device /dev/fuse \
-        --tmpfs /tmp -v /var/tmp:/var/tmp --name cosa \
+    docker run --rm -v ${PWD}:/srv/ --userns=host --device /dev/kvm --name cosa               \
+        --tmpfs /tmp -v /var/tmp:/var/tmp --privileged                                        \
         ${COREOS_ASSEMBLER_CONFIG_GIT:+-v $COREOS_ASSEMBLER_CONFIG_GIT:/srv/src/config/:ro}   \
         ${COREOS_ASSEMBLER_GIT:+-v $COREOS_ASSEMBLER_GIT/src/:/usr/lib/coreos-assembler/:ro}  \
         ${COREOS_ASSEMBLER_CONTAINER_RUNTIME_ARGS}                                            \
@@ -120,8 +139,9 @@ main() {
         echo "Using Fedora: ${fedora_release}"
         setup_repos "${ovirt_release_rpm}" "${fedora_release}"
         workdir=$(mktemp -dp /var/tmp)
+        chmod 755 ${workdir}
         setup_cosa ${workdir}
-        rebuild_vdsm ${workdir}
+        handle_overrides ${workdir}
         pushd ${workdir}
         cosa init --force /dev/null
         find .
@@ -131,11 +151,12 @@ main() {
         cosa buildextend-installer
         verstr="${version}-$(date +%Y%m%d%H).fc${fedora_release}"
         iso="ovirt-node-coreos-installer-${verstr}.iso"
-        img="ovirt-node-coreos-metal-${verstr}.raw.xz"
+        img="ovirt-node-coreos-metal-${verstr}.raw.gz"
         ostree="ovirt-node-coreos-ostree-commit-${verstr}.tar"
-        find . -name "*.raw" -exec xz {} \;
+        find . -name "*.raw" -exec gzip {} \;
+        mkdir -p ${output_dir}
         find . -name "*.iso" -exec mv {} ${output_dir}/${iso} \;
-        find . -name "*.raw.xz" -exec mv {} ${output_dir}/${img} \;
+        find . -name "*.raw.gz" -exec mv {} ${output_dir}/${img} \;
         find . -name "ostree-commit.tar" -exec mv {} ${output_dir}/${ostree} \;
         popd
         rm -rf ${workdir}
