@@ -12,7 +12,7 @@ setup_repos() {
     # Grab basic fedora-coreos-config
     rm -rf fedora-coreos-config
     git clone --depth=1 https://github.com/coreos/fedora-coreos-config.git
-    ln -sf fedora-coreos-config/*.repo .
+    ln -sf fedora-coreos-config/fedora.repo .
     ln -sf fedora-coreos-config/minimal.yaml .
     ln -sf fedora-coreos-config/image.yaml .
     ln -sf fedora-coreos-config/installer .
@@ -23,6 +23,13 @@ setup_repos() {
     # Rebrand installer
     sed -i 's/Fedora CoreOS/oVirt Node CoreOS/' \
         installer/isolinux/isolinux.cfg installer/EFI/fedora/grub.cfg \
+
+    if [[ ${fedora_release} == "29" ]]; then
+        # Change basic ignition config version to 2.3.0
+        find -name base.ign -exec sed -i 's/version.*/version": "2.3.0"/' {} \;
+        # Need to make sure everything under /var is there
+        echo "save-var-subdirs-for-selabel-workaround: yes" >> image.yaml
+    fi
 
     # Extract repo files from release.rpm
     tmpdir=$(mktemp -d)
