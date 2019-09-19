@@ -1,0 +1,5 @@
+#!/bin/bash
+
+echo "ignore grubby" >&2
+
+exit 0

@@ -1,0 +1,28 @@
+include: fedora-coreos-config/fedora-coreos-base.yaml
+
+ref: fedora/${basearch}/coreos/ovirt-node-@OVIRT_VERSION@
+
+releasever: "@FEDORA_RELEASEVER@"
+automatic-version-prefix: "${releasever}.<date:%Y%m%d>.dev"
+mutate-os-release: "${releasever}"
+
+add-commit-metadata:
+  fedora-coreos.stream: ovirt-node-@OVIRT_VERSION@
+
+rojig:
+  license: MIT
+  name: ovirt-node-coreos
+  summary: oVirt Node CoreOS base image
+
+etc-group-members:
+  - wheel
+  - sudo
+  - systemd-journal
+  - adm
+  - disk
+  - cdrom
+  - kvm
+  - qemu
+
+packages:
+  - ovirt-host

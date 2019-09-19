@@ -1,0 +1,7 @@
+size: 8
+save-var-subdirs-for-selabel-workaround: yes
+ostree-remote: fedora
+
+extra-kargs:
+  - crashkernel=128M
+  - mitigations=auto,nosmt
