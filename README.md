@@ -1,5 +1,11 @@
 # oVirt Node CoreOS
 
+**⚠️ This project is no longer maintained. ⚠️**
+
+If you want to work on this project please get in touch via the [oVirt developers mailing list](https://lists.ovirt.org/admin/lists/devel.ovirt.org/).
+
+---
+
 Welcome to the oVirt Node CoreOS source repository.
 
 This repository is hosted on [gerrit.ovirt.org:ovirt-node-coreos](https://gerrit.ovirt.org/#/admin/projects/ovirt-node-coreos)
